@@ -19,7 +19,8 @@ def nx_minimum_assortativity(nx_graph, attribute):
 
     sum_ai_bi = np.sum(absolute_mixing_matrix.sum(axis=0) * absolute_mixing_matrix.sum(axis=1))
 
-    r_min = - sum_ai_bi / (1 - sum_ai_bi) ## r_min as defined by Newmann
+    # r_min as defined by Newmann:
+    r_min = - sum_ai_bi / (1 - sum_ai_bi)
 
     return r_min
 
@@ -104,32 +105,24 @@ def edge_prob_analytical(h_aa, h_bb, fa):
     for c in np.roots(P):
         if 0<c and c < 2:
             ca = c 
-    #ca = np.roots(P)[1] #only one root is acceptable
-    #print 'ca',ca
-    
-    #print 'ca',ca
-    
+
     beta_a = float(fa*h_aa)/ (h_aa*ca + h_ab * (2 - ca)) + float(fb*h_ba)/(h_ba*ca + h_bb*(2-ca))   #beta and ca are accurate
     beta_b = float(fb*h_bb)/ (h_ba*ca + h_bb * (2 - ca)) + float(fa*h_ab)/(h_aa*ca + h_ab*(2-ca)) 
 
     ba = fa / (1 - beta_a)
     bb = fb / (1 - beta_b)
-
     
-    #print 'beta_a' , beta_a , 'beta_b',beta_b
-    
-    p_aa = (fa * h_aa *ba)/( h_aa *ba + h_ab *bb)
+    p_aa = (fa * h_aa * ba)/(h_aa * ba + h_ab * bb)
 
-    p_bb = (fb * h_bb *bb)/( h_bb *bb + h_ba *ba)
+    p_bb = (fb * h_bb * bb)/(h_bb * bb + h_ba * ba)
     
     p_ab = (fa*h_ab*bb) /(h_ab*bb +h_aa*ba) + (fb*h_ba*ba)/(h_ba*ba +h_bb*bb)
     
-    P_aa_analytic = float(p_aa)/(p_aa + p_bb + p_ab) # this is the exact result
+    P_aa_analytic = float(p_aa)/(p_aa + p_bb + p_ab)  # this is the exact result
     P_bb_analytic = float(p_bb)/(p_aa + p_bb + p_ab)
 
     #Z = ba
     #K = bb
-    
     #P_aa_analytic =(fa * h_aa * Z ) / ((fa * h_aa * Z)+ (fb*(1-h_bb)*Z) + (fa*(1-h_aa)*K)+(fb *h_bb*K) ) #this is a very close approximate
     #P_bb_analytic =(fb * h_bb * K ) / ((fa * h_aa * Z)+ (fb*(1-h_bb)*Z) + (fa*(1-h_aa)*K)+(fb *h_bb*K) ) #this is a very close approximate
     
@@ -210,10 +203,6 @@ def analytical_assortativity_ba(f_0, h_00, h_11):
     h_ab = 1 - h_00
     h_ba = 1 - h_11
 
-#     p_aa = f_0 * h_00 * ba
-#     p_bb = fb * h_11 * bb
-#     p_ab = f_0 * h_ab * bb + fb * h_ba * ba
-
     p_aa = (f_0 * h_00 *ba)/( h_00 *ba + h_ab *bb) #with denominator the analytical newman is closer to the actual newman
     p_bb = (fb * h_11 *bb)/( h_11 *bb + h_ba *ba)
     p_ab = (f_0*h_ab*bb) /(h_ab*bb +h_00*ba) + (fb*h_ba*ba)/(h_ba*ba +h_11*bb) 
@@ -223,9 +212,7 @@ def analytical_assortativity_ba(f_0, h_00, h_11):
     B = p_aa + p_bb
 
     r = ((1/E) * B - (1/E)**2 * A) / (1 - (1/E)**2 * A)
-    
 
-    
     return r
 
 
@@ -246,3 +233,45 @@ def analytical_assortativity_er(f_0, h_00, h_11):
     sum_e_ii = (p_00 + p_11)
     r = (sum_e_ii - sum_a_i_b_i) / (1 - sum_a_i_b_i)
     return r
+
+
+def estimate_h_er_numerical(nx_graph, attribute="color"):
+    counts, unique = nx_group_fraction(nx_graph, attribute)
+    f_0 = min(counts / counts.sum())
+    group_map = dict([(unique[i], i) for i in range(len(unique))])
+
+    absolute_mixing_matrix = nx.attribute_mixing_matrix(nx_graph, attribute, normalized=False, mapping=group_map)
+    absolute_mixing_matrix /= 2
+    E = absolute_mixing_matrix.sum()
+    E_00 = absolute_mixing_matrix[0, 0]
+    E_11 = absolute_mixing_matrix[1, 1]
+    e_00 = E_00 / E
+    e_11 = E_11 / E
+    f_1 = 1 - f_0
+    f = lambda h_11: np.abs(
+        h_11 - (e_11 / e_00) * (f_0 ** 2 / f_1 ** 2) * (f_0 * f_1 + f_1 ** 2 * h_11 + f_0 * f_1 * (1 - h_11)) / (
+                    f_0 ** 2 / e_00 - f_0 ** 2 + f_0 * f_1))
+    optimization = minimize(f, 0.5, method="L-BFGS-B", bounds=[(0, 1)])
+    h_11 = optimization['x'][0]
+    h_00 = (e_00 / e_11) * (f_1 ** 2 / f_0 ** 2) * h_11
+    return h_00, h_11
+
+
+def estimate_h_er_analytical(nx_graph, attribute="color"):
+    counts, unique = nx_group_fraction(nx_graph, attribute)
+    f_0 = min(counts / counts.sum())
+    group_map = dict([(unique[i], i) for i in range(len(unique))])
+
+    absolute_mixing_matrix = nx.attribute_mixing_matrix(nx_graph, attribute, normalized=False, mapping=group_map)
+    absolute_mixing_matrix /= 2
+    E = absolute_mixing_matrix.sum()
+    E_00 = absolute_mixing_matrix[0, 0]
+    E_11 = absolute_mixing_matrix[1, 1]
+    e_00 = E_00 / E
+    e_11 = E_11 / E
+    f_1 = 1 - f_0
+
+    sum_p_ij = 2 * f_0 * f_1 / (1 - e_00 * (1 - f_1 / f_0) - e_11 * (1 - f_0 / f_1))
+    h_11 = e_11 * sum_p_ij / f_1 ** 2
+    h_00 = (e_00 / e_11) * (f_1 ** 2 / f_0 ** 2) * h_11
+    return h_00, h_11
