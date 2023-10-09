@@ -236,6 +236,7 @@ def analytical_assortativity_er(f_0, h_00, h_11):
 
 
 def estimate_h_er_numerical(nx_graph, attribute="color"):
+    import networkx as nx
     counts, unique = nx_group_fraction(nx_graph, attribute)
     f_0 = min(counts / counts.sum())
     group_map = dict([(unique[i], i) for i in range(len(unique))])
@@ -258,6 +259,7 @@ def estimate_h_er_numerical(nx_graph, attribute="color"):
 
 
 def estimate_h_er_analytical(nx_graph, attribute="color"):
+    import networkx as nx
     counts, unique = nx_group_fraction(nx_graph, attribute)
     f_0 = min(counts / counts.sum())
     group_map = dict([(unique[i], i) for i in range(len(unique))])
