@@ -47,6 +47,8 @@ def nx_adjusted_assortativity(nx_graph, attribute):
 def nx_group_fraction(nx_graph, attribute):
     nodes_group = [nx_graph.nodes[n][attribute] for n in nx_graph.nodes]
     unique, counts = np.unique(nodes_group, return_counts=True)
+    counts, unique = list(zip(*sorted(zip(counts, unique))))
+    counts = np.array(counts)
     return counts, unique
 
 
@@ -277,3 +279,55 @@ def estimate_h_er_analytical(nx_graph, attribute="color"):
     h_11 = e_11 * sum_p_ij / f_1 ** 2
     h_00 = (e_00 / e_11) * (f_1 ** 2 / f_0 ** 2) * h_11
     return h_00, h_11
+
+def func_opt(h_00, h_11, f_0, e_00, e_11, beta_0, beta_1):
+    from sklearn.metrics import mean_squared_error
+    beta_0_, beta_1_, e_00_, e_11_ = edge_prob_analytical(h_00, h_11, f_0)
+    estimated = np.array([beta_0_, beta_1_, e_00_, e_11_])
+    values = np.array([beta_0, beta_1, e_00, e_11])
+    return mean_squared_error(values, estimated)   
+
+def get_e_00_e_11(nx_graph, attribute="color"):
+    counts, unique = nx_group_fraction(nx_graph, attribute)
+    group_map = dict([(unique[i], i) for i in range(len(unique))])
+    absolute_mixing_matrix = nx.attribute_mixing_matrix(nx_graph, attribute, normalized=False, mapping=group_map)
+#     absolute_mixing_matrix /= 2
+    E = absolute_mixing_matrix.sum()
+    E_00 = absolute_mixing_matrix[0, 0]
+    E_11 = absolute_mixing_matrix[1, 1]
+    e_00 = E_00 / E
+    e_11 = E_11 / E
+    return e_00, e_11
+
+def estimate_h_ba(nx_graph, attribute="color", power_law_xmin=None):
+    import networkx as nx
+    from scipy.optimize import minimize
+    import powerlaw
+    counts, unique = nx_group_fraction(nx_graph, attribute)
+    group_map = dict([(unique[i], i) for i in range(len(unique))])
+
+    f_0 = counts[0]/counts.sum()
+    f_1 = 1 - f_0
+
+    # estimating betas
+    f = powerlaw.Fit(np.array([v[1] for v in nx_graph.degree() if nx_graph.nodes[v[0]][attribute] == unique[0]]), xmin=power_law_xmin)
+    alpha_0 = f.alpha
+    beta_0 = 1/(alpha_0 - 1)
+    f = powerlaw.Fit(np.array([v[1] for v in nx_graph.degree() if nx_graph.nodes[v[0]][attribute] == unique[1]]), xmin=power_law_xmin)
+    alpha_1 = f.alpha
+    beta_1 = 1/(alpha_1 - 1)
+    
+    # calculating e_00, e_11
+    absolute_mixing_matrix = nx.attribute_mixing_matrix(nx_graph, attribute, normalized=False, mapping=group_map)
+    absolute_mixing_matrix /= 2
+    E = absolute_mixing_matrix.sum()
+    E_00 = absolute_mixing_matrix[0, 0]
+    E_11 = absolute_mixing_matrix[1, 1]
+    e_00 = E_00 / E
+    e_11 = E_11 / E
+
+    f = lambda x: func_opt(x[0], x[1], f_0, e_00, e_11, beta_0, beta_1)
+    optimization = minimize(f, [0.5, 0.5], method="L-BFGS-B", bounds=[(0.0, 1), (0.0, 1)])
+    h_00_ = optimization['x'][0]
+    h_11_ = optimization['x'][1]
+    return h_00_, h_11_
