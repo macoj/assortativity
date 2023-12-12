@@ -1,0 +1,12 @@
+name: entroduction_graph_tool_env
+channels:
+  - defaults
+  - conda-forge
+  - ostrokach-forge
+  - pkgw-forge
+dependencies:
+  - matplotlib
+  - numpy
+  - scipy
+  - pandas
+  - networkx
