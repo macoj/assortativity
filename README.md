@@ -5,4 +5,6 @@ Nominal assortativity (or discrete assortativity) is widely used to characterize
 
 Karimi, F., Oliveira, M. On the inadequacy of nominal assortativity for assessing homophily in networks. _Scientific Reports_ **13**, 21053 (2023). https://doi.org/10.1038/s41598-023-48113-5
 
-You can run the Jupyter Notebooks online here: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/macoj/assortativity/HEAD)
+You can run the Jupyter Notebooks online clicking here: 
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/macoj/assortativity/HEAD)
