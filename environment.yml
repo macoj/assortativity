@@ -10,5 +10,5 @@ dependencies:
   - scipy
   - pandas
   - networkx
-  - sklearn
+  - scikit-learn
   - powerlaw
